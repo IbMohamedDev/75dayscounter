@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>75 Day Counter</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: white;
+        }
+        
+        .container {
+            text-align: center;
+            position: relative;
+            padding: 20px;
+            width: 100%;
+            max-width: 500px;
+        }
+        
+        .settings-icon {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 24px;
+        }
+        
+        .settings-panel {
+            position: absolute;
+            top: 40px;
+            right: 10px;
+            background-color: white;
+            border: 1px solid #ccc;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: none;
+        }
+        
+        .settings-panel h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+        
+        .settings-panel input {
+            padding: 8px;
+            width: 100%;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        
+        .counter {
+            background-color: #e0e0e0;
+            border-radius: 50px;
+            padding: 10px 30px;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+        
+        .counter-text {
+            color: #e63946;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        
+        .date-range {
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <button class="settings-icon" id="settingsButton">⚙️</button>
+        
+        <div class="settings-panel" id="settingsPanel">
+            <h3>Set Start Date</h3>
+            <input type="date" id="startDateInput">
+        </div>
+        
+        <div class="counter">
+            <span class="counter-text" id="counterDisplay">0 / 75</span>
+        </div>
+        
+        <div class="date-range" id="dateRange">
+            May 18 - Friday, August 1, 2025
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const settingsButton = document.getElementById('settingsButton');
+        const settingsPanel = document.getElementById('settingsPanel');
+        const startDateInput = document.getElementById('startDateInput');
+        const counterDisplay = document.getElementById('counterDisplay');
+        const dateRangeElement = document.getElementById('dateRange');
+        
+        // Get today's date in YYYY-MM-DD format
+        function getTodayString() {
+            const today = new Date();
+            return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        }
+        
+        // Calculate days between two date strings (YYYY-MM-DD format)
+        function daysBetween(date1String, date2String) {
+            const date1 = new Date(date1String + 'T00:00:00');
+            const date2 = new Date(date2String + 'T00:00:00');
+            
+            // Get time difference in milliseconds
+            const diffTime = date2.getTime() - date1.getTime();
+            
+            // Convert to days and round to handle DST changes
+            return Math.round(diffTime / (1000 * 60 * 60 * 24));
+        }
+        
+        // Format date for display (Month Day - Weekday, Month Day, Year)
+        function formatDateRange(startDateString, endDateString) {
+            const startDate = new Date(startDateString + 'T00:00:00');
+            const endDate = new Date(endDateString + 'T00:00:00');
+            
+            const options1 = { month: 'long', day: 'numeric' };
+            const options2 = { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' };
+            
+            const startFormatted = startDate.toLocaleDateString('en-US', options1);
+            const endFormatted = endDate.toLocaleDateString('en-US', options2);
+            
+            return `${startFormatted} - ${endFormatted}`;
+        }
+        
+        // Initialize app
+        let startDateString = localStorage.getItem('startDate') || getTodayString();
+        let endDateString = '';
+        let currentDay = 0;
+        
+        // Update counter and date display
+        function updateDisplay() {
+            // Calculate end date (start date + 75 days)
+            const startDate = new Date(startDateString + 'T00:00:00');
+            const endDate = new Date(startDate);
+            endDate.setDate(startDate.getDate() + 75); // Add exactly 75 days (start date is day 0)
+            
+            endDateString = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`;
+            
+            // Calculate current day
+            const todayString = getTodayString();
+            
+            // If today is before start date, show day 0
+            if (daysBetween(todayString, startDateString) > 0) {
+                currentDay = 0;
+            } else {
+                // Calculate days since start (start day is day 0)
+                const daysSinceStart = daysBetween(startDateString, todayString);
+                currentDay = Math.min(75, Math.max(0, daysSinceStart));
+            }
+            
+            // Update UI
+            counterDisplay.textContent = `${currentDay} / 75`;
+            dateRangeElement.textContent = formatDateRange(startDateString, endDateString);
+            startDateInput.value = startDateString;
+        }
+        
+        // Initial setup
+        updateDisplay();
+        
+        // Event listeners
+        settingsButton.addEventListener('click', () => {
+            settingsPanel.style.display = settingsPanel.style.display === 'block' ? 'none' : 'block';
+        });
+        
+        startDateInput.addEventListener('change', (e) => {
+            startDateString = e.target.value;
+            localStorage.setItem('startDate', startDateString);
+            updateDisplay();
+            settingsPanel.style.display = 'none';
+        });
+        
+        // Check for day changes periodically (every hour)
+        setInterval(updateDisplay, 60 * 60 * 1000);
+        
+        // Click outside settings panel to close it
+        document.addEventListener('click', (e) => {
+            if (e.target !== settingsButton && e.target !== settingsPanel && !settingsPanel.contains(e.target)) {
+                settingsPanel.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
